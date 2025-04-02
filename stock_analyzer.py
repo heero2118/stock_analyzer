@@ -2,7 +2,7 @@ import streamlit as st
 
 # Set Page Name and Emoji ####################################################################################
 st.set_page_config(page_title='Stock Analyzer',layout='wide',page_icon='📈')
-tab1, tab2, tab3 = st.tabs(['🕵️‍♂️ Screener','📋 Data','📊 Analsysis'])
+tab1, tab2, tab3 = st.tabs(['🕵️‍♂️ Screener','📋 Data','📊 Analysis'])
 
 with tab1:
     # find tickers
