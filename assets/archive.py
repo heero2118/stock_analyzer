@@ -80,3 +80,10 @@
 #         st.write(f'Displaying {len(selected_stocks_w_keyword)} stocks.')
 #         st.dataframe(selected_stocks_w_keyword[key_cols])
 #         st.divider()
+
+
+# Archived - detailed calculation of all stock pairs but extremetly time consuming #######################################################
+# df_corr1 = calculate_rolling_correlation(get_stock_return_daily(client, list1, start=market_date_start, end=market_date_end), window_size=market_corr_rolling_window)
+# df_corr1 = df_corr1.unstack().reset_index().rename(columns={'level_0':'metric',0:'correlation'}).set_index('timestamp')
+# plot_rolling_correlation(df_corr1)
+# Archived - detailed calculation of all stock pairs but extremetly time consuming #######################################################

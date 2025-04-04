@@ -48,7 +48,7 @@ with st.sidebar:
     elif frequency == 'Hour': timeUnit = 'yearmonthdatehours'
     elif frequency == 'Minute': timeUnit = 'yearmonthdatehoursminutes'
     col1, col2 = st.columns(2)
-    with col1: date_start = st.date_input("Select Start Date", datetime.today().replace(month=1, day=1), format="YYYY/MM/DD")-timedelta(days=0)
+    with col1: date_start = st.date_input("Select Start Date", datetime.today()-timedelta(days=365), format="YYYY/MM/DD") # .replace(month=1, day=1)
     with col2: date_end = st.date_input("Select End Date", datetime.today(), format="YYYY/MM/DD")
     st.divider()
 
@@ -76,13 +76,14 @@ with tab1:
     # Settings
     col1, col2, col3, col4, col5 = st.columns([1,1,1,1,3])
     with col1:
-        market_date_start = st.date_input("Start Date", datetime.today().replace(month=1, day=1), format="YYYY/MM/DD")-timedelta(days=0)
+        market_date_start = st.date_input("Start Date", datetime.today()-timedelta(days=365), format="YYYY/MM/DD") # .replace(month=1, day=1)
     with col2:
         market_date_end = st.date_input("End Date", datetime.today(), format="YYYY/MM/DD")
     with col3:
         line_sticks_select = st.radio('Select Price Chart Type',['Line','Candlesticks'],index=0)
     with col4:
-        market_corr_rolling_window = st.number_input(f'Rolling Corr Days', min_value=1, max_value=120, value=21, step=1)
+        market_corr_rolling_window = st.number_input(f'Rolling Correlation Days', min_value=1, max_value=120, value=21, step=1)
+        
         market_request_params = StockBarsRequest(symbol_or_symbols=etf_list, timeframe=TimeFrame.Day, start=market_date_start, end=market_date_end, adjustment='split')
         market_bars = client.get_stock_bars(market_request_params)
         market_data = market_bars.df.reset_index(level=0)
@@ -92,23 +93,20 @@ with tab1:
         symbol1 = 'SPY'
         st.plotly_chart(make_ohlc_chart(df=market_data[market_data['symbol']==symbol1],title=symbol1,line_sticks=line_sticks_select), use_container_width=True)
         list1 = df_tickers[df_tickers['Index']==get_key_from_value(url_dict,symbol1,'etf')]['Symbol'].to_list()
-        df_corr1 = calculate_rolling_correlation(get_stock_return_daily(client, list1, start=market_date_start, end=market_date_end), window_size=market_corr_rolling_window)
-        df_corr1 = df_corr1.unstack().reset_index().rename(columns={'level_0':'metric',0:'correlation'}).set_index('timestamp')
-        plot_rolling_correlation(df_corr1)
+        calculate_plot_rolling_correlation_benchmark(etf_ticker=symbol1, stock_ticker_list=list1, market_date_start=market_date_start, market_date_end=market_date_end, market_corr_rolling_window=market_corr_rolling_window)
+
     with col2:
         symbol2 = 'DIA'
         st.plotly_chart(make_ohlc_chart(df=market_data[market_data['symbol']==symbol2],title=symbol2,line_sticks=line_sticks_select), use_container_width=True)
         list2 = df_tickers[df_tickers['Index']==get_key_from_value(url_dict,symbol2,'etf')]['Symbol'].to_list()
-        df_corr2 = calculate_rolling_correlation(get_stock_return_daily(client, list2, start=market_date_start, end=market_date_end), window_size=market_corr_rolling_window)
-        df_corr2 = df_corr2.unstack().reset_index().rename(columns={'level_0':'metric',0:'correlation'}).set_index('timestamp')
-        plot_rolling_correlation(df_corr2)
+        calculate_plot_rolling_correlation_benchmark(etf_ticker=symbol2, stock_ticker_list=list2, market_date_start=market_date_start, market_date_end=market_date_end, market_corr_rolling_window=market_corr_rolling_window)
+        
     with col3:
         symbol3 = 'QQQ'
         st.plotly_chart(make_ohlc_chart(df=market_data[market_data['symbol']==symbol3],title=symbol3,line_sticks=line_sticks_select), use_container_width=True)
         list3 = df_tickers[df_tickers['Index']==get_key_from_value(url_dict,symbol3,'etf')]['Symbol'].to_list()
-        df_corr3 = calculate_rolling_correlation(get_stock_return_daily(client, list3, start=market_date_start, end=market_date_end), window_size=market_corr_rolling_window)
-        df_corr3 = df_corr3.unstack().reset_index().rename(columns={'level_0':'metric',0:'correlation'}).set_index('timestamp')
-        plot_rolling_correlation(df_corr3)
+        calculate_plot_rolling_correlation_benchmark(etf_ticker=symbol3, stock_ticker_list=list3, market_date_start=market_date_start, market_date_end=market_date_end, market_corr_rolling_window=market_corr_rolling_window)
+        
     st.divider()
 # Tab 1: Market Condition ####################################################################################
 
@@ -172,16 +170,9 @@ with tab4:
     with col1:
         ################ Cluster Heatmap ################
         st.subheader('Cluster Heatmap')
-        # Pivot the table by date
         df_return = df.pivot_table(index='timestamp',columns='symbol',values='close',aggfunc='mean').sort_index(ascending=True).pct_change()
-        heatmap = sns.clustermap(df_return.corr(), cmap='RdBu', vmin=-1, vmax=1, center=0, linecolor='white', linewidths=1, annot=True, fmt=".2f",annot_kws={"fontsize":14}) # sns.diverging_palette(220, 20, n=10, as_cmap=True)
+        heatmap = sns.clustermap(df_return.corr(), cmap='RdBu', vmin=-1, vmax=1, center=0, linecolor='white', linewidths=1, annot=True, fmt=".2f", annot_kws={'fontsize':14})
         st.pyplot(heatmap, bbox_inches='tight', dpi=300) # Display the plot in Streamlit
-        
-        df_return_ = market_data.pivot_table(index='timestamp',columns='symbol',values='close',aggfunc='mean').sort_index(ascending=True).pct_change()
-        df_return_corr_ = df_return_.corr()
-        avg_corr, avg_abs_corr = calculate_average_corr(df_return_corr_)
-        st.write(f'Avg Correlation: {avg_corr:.2f}')
-        st.write(f'Avg Absolute Correlation: {avg_abs_corr:.2f}')
         ################ Cluster Heatmap ################
     with col3:
         ################ Pair Correlation ################
@@ -194,7 +185,7 @@ with tab4:
         with col2: 
             selected2 = st.selectbox('Select Stock 2', [x for x in selected_stocks_list if x != selected1] , index=0)
             index2 = get_key_from_value(url_dict, selected2, 'etf')
-        with col3: rolling_window = st.number_input(f'Rolling Window - {frequency}s', min_value=1, max_value=120, value=30, step=1)
+        with col3: rolling_window = st.number_input(f'Rolling Window - {frequency}s', min_value=1, max_value=120, value=21, step=1)
         # plot rolling correlation
         df_return['rolling_corr'] = df_return[selected1].rolling(rolling_window).corr(df_return[selected2])
         
