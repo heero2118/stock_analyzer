@@ -29,6 +29,7 @@ with st.sidebar:
     def load_data(url_dict):
         df = pd.DataFrame([])
         for key in url_dict:
+            st.write(key)
             html = pd.read_html(url_dict[key]['url'], header=0)
             df1 = html[url_dict[key]['position']]
             df1['Index'] = key
