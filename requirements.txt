@@ -1,5 +1,9 @@
 streamlit
 pandas
 datetime
-financedatabase
 alpaca-py
+altair
+plotly
+matplotlib
+seaborn
+numpy

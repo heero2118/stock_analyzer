@@ -1,110 +1,212 @@
 import streamlit as st
+import pandas as pd
+from datetime import datetime, timedelta
+import financedatabase as fd
+import altair as alt
+import plotly.graph_objects as go
+import plotly.express as px
+import seaborn as sns 
+import matplotlib.pyplot as plt
+import numpy as np
+from assets.functions import *
+from assets.alpaca_setup import *
 
 # Set Page Name and Emoji ####################################################################################
 st.set_page_config(page_title='Stock Analyzer',layout='wide',page_icon='📈')
-tab1, tab2, tab3 = st.tabs(['🕵️‍♂️ Screener','📋 Data','📊 Analysis'])
 
+# Set Up Sidebar ####################################################################################
+with st.sidebar:
+    st.subheader('Stock Selection')
+
+    # Load S&P 500, 400, 600 companies from Wikipedia ##########################################################
+    def load_data(url_dict):
+        df = pd.DataFrame([])
+        for key in url_dict:
+            html = pd.read_html(url_dict[key]['url'], header=0)
+            df1 = html[url_dict[key]['position']]
+            df1['Index'] = key
+            df1.rename(columns={'Security':'Company'},inplace=True)
+            df1.rename(columns={'Ticker':'Symbol'},inplace=True)
+            df = pd.concat([df, df1], axis=0, ignore_index=True)
+        return df
+    url_dict = {'S&P500':{'url':'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies','position':0,'etf':'SPY'},
+                'S&P400':{'url':'https://en.wikipedia.org/wiki/List_of_S%26P_400_companies','position':0,'etf':'SPMD'},
+                'S&P600':{'url':'https://en.wikipedia.org/wiki/List_of_S%26P_600_companies','position':0,'etf':'SPSM'},
+                'DJIA30':{'url':'https://en.wikipedia.org/wiki/Dow_Jones_Industrial_Average#Components','position':2,'etf':'DIA'},
+                'Nasdaq100':{'url':'https://en.wikipedia.org/wiki/Nasdaq-100#Components','position':4,'etf':'QQQ'}
+                }
+    index_list = list(url_dict.keys())
+    df_tickers = load_data(url_dict)
+    key_cols = ['Index','Symbol','Company','Headquarters Location','Date added','Founded']
+    etf_list = [url_dict[key]['etf'] for key in url_dict]
+    symbol_list = list(df_tickers[df_tickers['Index'].isin(index_list)]['Symbol'].unique()) + etf_list
+    selected_stocks_list = st.multiselect('Select Stocks ', symbol_list, default=etf_list)
+
+    # Select input parameters
+    frequency = st.radio('Select Stock Bar Frequency',['Day','Hour','Minute'],index=0,horizontal=True)
+    # Set time unit for Altair chart
+    if frequency == 'Day': timeUnit = 'yearmonthdate'
+    elif frequency == 'Hour': timeUnit = 'yearmonthdatehours'
+    elif frequency == 'Minute': timeUnit = 'yearmonthdatehoursminutes'
+    col1, col2 = st.columns(2)
+    with col1: date_start = st.date_input("Select Start Date", datetime.today().replace(month=1, day=1), format="YYYY/MM/DD")-timedelta(days=0)
+    with col2: date_end = st.date_input("Select End Date", datetime.today(), format="YYYY/MM/DD")
+    st.divider()
+
+    # Show selected stocks details
+    st.subheader('Selected Stocks')
+    st.dataframe(df_tickers[df_tickers['Symbol'].isin(selected_stocks_list)][['Index','Symbol','Company']], hide_index=True, use_container_width=True)
+
+# Set Up Multiple Tabs ####################################################################################
+tab1, tab2, tab3, tab4 = st.tabs(['🌎 Market Condition', '📂 Reference','📋 Stock Data','📊 Stock Correlation'])
+# Tweak font size of tab names
+font_css = """
+<style>
+button[data-baseweb="tab"] > div[data-testid="stMarkdownContainer"] > p {
+  font-size: 18px;
+}
+</style>
+"""
+st.write(font_css, unsafe_allow_html=True)
+# Set Up Multiple Tabs ####################################################################################
+
+# Tab 1: Market Condition ####################################################################################
 with tab1:
-    # find tickers
-    import financedatabase as fd
+    # Pull data from Alpaca ####################################################################################
+    st.subheader('Market Condition')
+    # Settings
+    col1, col2, col3, col4, col5 = st.columns([1,1,1,1,3])
+    with col1:
+        market_date_start = st.date_input("Start Date", datetime.today().replace(month=1, day=1), format="YYYY/MM/DD")-timedelta(days=0)
+    with col2:
+        market_date_end = st.date_input("End Date", datetime.today(), format="YYYY/MM/DD")
+    with col3:
+        line_sticks_select = st.radio('Select Price Chart Type',['Line','Candlesticks'],index=0)
+    with col4:
+        market_corr_rolling_window = st.number_input(f'Rolling Corr Days', min_value=1, max_value=120, value=21, step=1)
+        market_request_params = StockBarsRequest(symbol_or_symbols=etf_list, timeframe=TimeFrame.Day, start=market_date_start, end=market_date_end, adjustment='split')
+        market_bars = client.get_stock_bars(market_request_params)
+        market_data = market_bars.df.reset_index(level=0)
+    # Price charts
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        symbol1 = 'SPY'
+        st.plotly_chart(make_ohlc_chart(df=market_data[market_data['symbol']==symbol1],title=symbol1,line_sticks=line_sticks_select), use_container_width=True)
+        list1 = df_tickers[df_tickers['Index']==get_key_from_value(url_dict,symbol1,'etf')]['Symbol'].to_list()
+        df_corr1 = calculate_rolling_correlation(get_stock_return_daily(client, list1, start=market_date_start, end=market_date_end), window_size=market_corr_rolling_window)
+        df_corr1 = df_corr1.unstack().reset_index().rename(columns={'level_0':'metric',0:'correlation'}).set_index('timestamp')
+        plot_rolling_correlation(df_corr1)
+    with col2:
+        symbol2 = 'DIA'
+        st.plotly_chart(make_ohlc_chart(df=market_data[market_data['symbol']==symbol2],title=symbol2,line_sticks=line_sticks_select), use_container_width=True)
+        list2 = df_tickers[df_tickers['Index']==get_key_from_value(url_dict,symbol2,'etf')]['Symbol'].to_list()
+        df_corr2 = calculate_rolling_correlation(get_stock_return_daily(client, list2, start=market_date_start, end=market_date_end), window_size=market_corr_rolling_window)
+        df_corr2 = df_corr2.unstack().reset_index().rename(columns={'level_0':'metric',0:'correlation'}).set_index('timestamp')
+        plot_rolling_correlation(df_corr2)
+    with col3:
+        symbol3 = 'QQQ'
+        st.plotly_chart(make_ohlc_chart(df=market_data[market_data['symbol']==symbol3],title=symbol3,line_sticks=line_sticks_select), use_container_width=True)
+        list3 = df_tickers[df_tickers['Index']==get_key_from_value(url_dict,symbol3,'etf')]['Symbol'].to_list()
+        df_corr3 = calculate_rolling_correlation(get_stock_return_daily(client, list3, start=market_date_start, end=market_date_end), window_size=market_corr_rolling_window)
+        df_corr3 = df_corr3.unstack().reset_index().rename(columns={'level_0':'metric',0:'correlation'}).set_index('timestamp')
+        plot_rolling_correlation(df_corr3)
+    st.divider()
+# Tab 1: Market Condition ####################################################################################
 
-    # Initialize the Equities database
-    equities = fd.Equities()
-    # Obtain all countries from the database
-    countries = ['United States', 'Afghanistan', 'Anguilla', 'Argentina', 'Australia', 'Austria',
-        'Azerbaijan', 'Bahamas', 'Bangladesh', 'Barbados', 'Belgium', 'Belize', 'Bermuda', 'Botswana', 'Brazil',
-        'British Virgin Islands', 'Cambodia', 'Canada', 'Cayman Islands', 'Chile', 'China', 'Colombia', 'Costa Rica', 'Cyprus',
-        'Czech Republic', 'Denmark', 'Dominican Republic', 'Egypt', 'Estonia', 'Falkland Islands', 'Finland', 'France',
-        'French Guiana', 'Gabon', 'Georgia', 'Germany', 'Ghana', 'Gibraltar', 'Greece', 'Greenland', 'Guernsey', 'Hong Kong',
-        'Hungary', 'Iceland', 'India', 'Indonesia', 'Ireland', 'Isle of Man', 'Israel', 'Italy', 'Ivory Coast', 'Japan', 'Jersey',
-        'Jordan', 'Kazakhstan', 'Kenya', 'Kyrgyzstan', 'Latvia', 'Liechtenstein', 'Lithuania', 'Luxembourg', 'Macau', 'Macedonia',
-        'Malaysia', 'Malta', 'Mauritius', 'Mexico', 'Monaco', 'Mongolia', 'Montenegro', 'Morocco', 'Mozambique', 'Myanmar', 'Namibia',
-        'Netherlands', 'Netherlands Antilles', 'New Zealand', 'Nigeria', 'Norway', 'Panama', 'Papua New Guinea', 'Peru', 'Philippines',
-        'Poland', 'Portugal', 'Qatar', 'Reunion', 'Romania', 'Russia', 'Saudi Arabia', 'Senegal', 'Singapore', 'Slovakia', 'Slovenia',
-        'South Africa', 'South Korea', 'Spain', 'Suriname', 'Sweden', 'Switzerland', 'Taiwan', 'Tanzania', 'Thailand', 'Turkey',
-        'Ukraine', 'United Arab Emirates', 'United Kingdom', 'Uruguay', 'Vietnam', 'Zambia']
-    # Obtain all sectors from the database
-    sectors = ['Communication Services', 'Consumer Discretionary', 'Consumer Staples', 'Energy', 'Financials',
-            'Health Care', 'Industrials', 'Information Technology', 'Materials', 'Real Estate', 'Utilities']
-    # Obtain all industry groups from the database
-    industry_groups = ['Automobiles & Components', 'Banks', 'Capital Goods', 'Commercial & Professional Services',
-        'Consumer Durables & Apparel', 'Consumer Services', 'Diversified Financials', 'Energy', 'Food & Staples Retailing',
-        'Food, Beverage & Tobacco', 'Health Care Equipment & Services', 'Household & Personal Products', 'Insurance', 'Materials',
-        'Media & Entertainment', 'Pharmaceuticals, Biotechnology & Life Sciences', 'Real Estate',
-        'Retailing', 'Semiconductors & Semiconductor Equipment', 'Software & Services', 'Technology Hardware & Equipment',
-        'Telecommunication Services', 'Transportation', 'Utilities']
-    # Obtain all industry from the database
-    industries = ['Aerospace & Defense', 'Air Freight & Logistics', 'Airlines', 'Auto Components', 'Automobiles', 'Banks', 'Beverages',
-        'Biotechnology', 'Building Products', 'Capital Markets', 'Chemicals', 'Commercial Services & Supplies',
-        'Communications Equipment', 'Construction & Engineering', 'Construction Materials', 'Consumer Finance', 'Distributors',
-        'Diversified Consumer Services', 'Diversified Financial Services', 'Diversified Telecommunication Services', 'Electric Utilities',
-        'Electrical Equipment', 'Electronic Equipment, Instruments & Components', 'Energy Equipment & Services', 'Entertainment',
-        'Equity Real Estate Investment Trusts (REITs)', 'Food & Staples Retailing', 'Food Products', 'Gas Utilities',
-        'Health Care Equipment & Supplies', 'Health Care Providers & Services', 'Health Care Technology',
-        'Hotels, Restaurants & Leisure', 'Household Durables', 'Household Products', 'IT Services',
-        'Independent Power and Renewable Electricity Producers', 'Industrial Conglomerates', 'Insurance',
-        'Interactive Media & Services', 'Internet & Direct Marketing Retail', 'Machinery', 'Marine',
-        'Media', 'Metals & Mining', 'Multi-Utilities', 'Oil, Gas & Consumable Fuels', 'Paper & Forest Products',
-        'Pharmaceuticals', 'Professional Services', 'Real Estate Management & Development', 'Road & Rail', 'Semiconductors & Semiconductor Equipment', 'Software',
-        'Specialty Retail', 'Technology Hardware, Storage & Peripherals', 'Textiles, Apparel & Luxury Goods', 'Thrifts & Mortgage Finance',
-        'Tobacco', 'Trading Companies & Distributors', 'Transportation Infrastructure', 'Water Utilities']
-    # Create list of market cap sizes
-    market_cap_sizes = ['Large Cap', 'Mid Cap', 'Small Cap', 'Micro Cap', 'Nano Cap']
-
-    # Selection boxes ####################################################################################
-    with st.container():
-        st.title("Stock Screener using financedatabase")
-        col1,col2,col3,col4,col5=st.columns(5)
-        with col1:
-            selected_country = st.selectbox('Select Country',countries,index=0)
-        with col2:
-            selected_sector = st.selectbox('Select Sector',sectors,index=None)
-            selected_sector = selected_sector if selected_sector is not None else ""
-        with col3:
-            selected_industry_group = st.selectbox('Select Industry Group',industry_groups,index=None)
-            selected_industry_group = selected_industry_group if selected_industry_group is not None else ""
-        with col4:
-            selected_industry = st.selectbox('Select Industry',industries,index=None)
-            selected_industry = selected_industry if selected_industry is not None else ""
-        with col5:
-            selected_market_cap = st.multiselect('Select Market Cap Size',market_cap_sizes,default=['Large Cap','Mid Cap'])
-
-        # Display filtered stocks ####################################################################################
-        key_cols = ['symbol','name','summary','currency','exchange','market','market_cap','sector','industry_group','industry','country','state','city','zipcode','website']
-        selected_stocks = equities.select(country=selected_country, sector=selected_sector, industry_group=selected_industry_group, industry=selected_industry)
-        selected_stocks = selected_stocks[selected_stocks['market_cap'].isin(selected_market_cap)].reset_index()
-        st.write(f'Displaying {len(selected_stocks)} stocks.')
-        st.dataframe(selected_stocks[key_cols])
-        st.divider()
-
-    # key word search ####################################################################################
-    with st.container():
-        st.title("Filter further with summary keywords")
-        keyword = st.text_input('Enter keyword',placeholder='')
-        selected_stocks_w_keyword = selected_stocks[selected_stocks['summary'].str.contains(keyword,case=False)==True]
-        st.write(f'Displaying {len(selected_stocks_w_keyword)} stocks.')
-        st.dataframe(selected_stocks_w_keyword[key_cols])
-        st.divider()
-
+# Tab 2: Reference ####################################################################################
 with tab2:
-    import pandas as pd
-    from datetime import datetime
+    st.subheader('Reference Stocks')
+    st.write(f'Displaying {len(df_tickers):,} companies.')
+    st.dataframe(df_tickers[key_cols],use_container_width=True,hide_index=True)
+    st.divider()
+# Tab 2: Reference ####################################################################################
 
-    # Alpaca keys
-    api_key = 'AKARY3S28GJ1O05GWRVX'
-    secret_key = 'WhECbTRozVhvjCfxjEzkMgbtrlD0NTCwnFgfftFF'
+# Tab 3: Stock Data ####################################################################################
+with tab3:
+    # Pull data from Alpaca ####################################################################################
+    st.subheader('Price Chart')
+    
+    # Display dataframe
+    # Pull data from Alpaca
+    if frequency == 'Day': request_params = StockBarsRequest( symbol_or_symbols=selected_stocks_list, timeframe=TimeFrame.Day, start=date_start, end=date_end,adjustment='split')
+    elif frequency == 'Hour': request_params = StockBarsRequest( symbol_or_symbols=selected_stocks_list, timeframe=TimeFrame.Hour, start=date_start, end=date_end,adjustment='split')
+    elif frequency == 'Minute': request_params = StockBarsRequest( symbol_or_symbols=selected_stocks_list, timeframe=TimeFrame.Minute, start=date_start, end=date_end,adjustment='split')
+    # Print close price chart
+    if len(selected_stocks_list)==0: st.write('No Stocks Selected')
+    else: 
+        bars = client.get_stock_bars(request_params)
+        data = bars.df.reset_index(level=0)
+        # convert to US Eastern Time
+        data.index = data.index.tz_convert('US/Eastern')
+        # calcualte time columns
+        data['date'] = data.index.date
+        data['hour'] = data.index.hour
+        data['minute'] = data.index.minute
+        # remove non-trading hours if frequency is Hour or Minute
+        if frequency == 'Hour' or frequency == 'Minute':
+            data = data.between_time('09:30','16:00')
+        
+        ################ Altair chart ################
+        # Encoding Types: Q (quantitative), N (nominal), O (ordinal), T (temporal)
+        price_chart = alt.Chart(data.reset_index()).mark_line().encode(
+            x=alt.X('timestamp:O', timeUnit=timeUnit, title='Date'),
+            y=alt.Y('close:Q',  title='Price', scale=alt.Scale(zero=False)),
+            color='symbol:N'
+        )
+        st.altair_chart(price_chart, use_container_width=True)
+        ################ Altair chart ################
+    st.divider()
 
-    from alpaca.data.historical import StockHistoricalDataClient
-    from alpaca.data.requests import StockBarsRequest
-    from alpaca.data.timeframe import TimeFrame
+    # Display Sample Data ####################################################################################       
+    sample_data = st.expander('Show Sample Data')
+    sample_data.dataframe(data,use_container_width=True)
+# Tab 3: Stock Data ####################################################################################
 
-    client = StockHistoricalDataClient(api_key=api_key, secret_key=secret_key)
+# Tab 4: Correlation Analysis ####################################################################################
+with tab4:
+    # Correlation Analysis ####################################################################################
+    st.subheader('Correlation Analysis')
+    df = data.copy()
 
-    request_params = StockBarsRequest(
-                            symbol_or_symbols=['PLTR','AAPL'],
-                            timeframe=TimeFrame.Day,
-                            start=datetime(2025, 1, 1),
-                            end=datetime(2025, 3, 23)
-                    )
-
-    bars = client.get_stock_bars(request_params)
+    # make 2 columns
+    col1, col2, col3 = st.columns([4, 0.1, 6])
+    with col1:
+        ################ Cluster Heatmap ################
+        st.subheader('Cluster Heatmap')
+        # Pivot the table by date
+        df_return = df.pivot_table(index='timestamp',columns='symbol',values='close',aggfunc='mean').sort_index(ascending=True).pct_change()
+        heatmap = sns.clustermap(df_return.corr(), cmap='RdBu', vmin=-1, vmax=1, center=0, linecolor='white', linewidths=1, annot=True, fmt=".2f",annot_kws={"fontsize":14}) # sns.diverging_palette(220, 20, n=10, as_cmap=True)
+        st.pyplot(heatmap, bbox_inches='tight', dpi=300) # Display the plot in Streamlit
+        
+        df_return_ = market_data.pivot_table(index='timestamp',columns='symbol',values='close',aggfunc='mean').sort_index(ascending=True).pct_change()
+        df_return_corr_ = df_return_.corr()
+        avg_corr, avg_abs_corr = calculate_average_corr(df_return_corr_)
+        st.write(f'Avg Correlation: {avg_corr:.2f}')
+        st.write(f'Avg Absolute Correlation: {avg_abs_corr:.2f}')
+        ################ Cluster Heatmap ################
+    with col3:
+        ################ Pair Correlation ################
+        st.subheader('Pair correlation')
+        # select a specific pair
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            selected1 = st.selectbox('Select Stock 1', selected_stocks_list, index=0)
+            index1 = get_key_from_value(url_dict, selected1, 'etf')
+        with col2: 
+            selected2 = st.selectbox('Select Stock 2', [x for x in selected_stocks_list if x != selected1] , index=0)
+            index2 = get_key_from_value(url_dict, selected2, 'etf')
+        with col3: rolling_window = st.number_input(f'Rolling Window - {frequency}s', min_value=1, max_value=120, value=30, step=1)
+        # plot rolling correlation
+        df_return['rolling_corr'] = df_return[selected1].rolling(rolling_window).corr(df_return[selected2])
+        
+        ################ Altair chart ################
+        # Encoding Types: Q (quantitative), N (nominal), O (ordinal), T (temporal)
+        corr_chart = alt.Chart(df_return.reset_index(),title=f'Rolling {rolling_window} {frequency} correlation - {index1} vs. {index2}').mark_line(interpolate='step-after').encode(
+            x=alt.X('timestamp:O', timeUnit=timeUnit, title='Date'),
+            y=alt.Y('rolling_corr:Q',  title='Correlation', scale=alt.Scale(domain=[-1, 1], zero=False)),
+        )
+        lines = alt.Chart(pd.DataFrame({'y': [-1,0,1]})).mark_rule().encode(y='y')
+        st.altair_chart(corr_chart+lines, use_container_width=True)
+        ################ Altair chart ################
+        ################ Pair Correlation ################
+# Tab 4: Correlation Analysis ####################################################################################
