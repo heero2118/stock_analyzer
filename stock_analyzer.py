@@ -17,7 +17,15 @@ st.set_page_config(page_title='Stock Analyzer',layout='wide',page_icon='📈')
 with st.sidebar:
     st.subheader('Stock Selection')
 
-    # Load S&P 500, 400, 600 companies from Wikipedia ##########################################################
+    # Load Index facts from Wiki ##########################################################
+    url_dict = {'S&P500':{'url':'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies','position':0,'etf':'SPY'},
+                'S&P400':{'url':'https://en.wikipedia.org/wiki/List_of_S%26P_400_companies','position':0,'etf':'SPMD'},
+                'S&P600':{'url':'https://en.wikipedia.org/wiki/List_of_S%26P_600_companies','position':0,'etf':'SPSM'},
+                'DJIA30':{'url':'https://en.wikipedia.org/wiki/Dow_Jones_Industrial_Average#Components','position':2,'etf':'DIA'},
+                'Nasdaq100':{'url':'https://en.wikipedia.org/wiki/Nasdaq-100#Components','position':4,'etf':'QQQ'}
+                }
+
+    # A function to pull those facts ##########################################################
     def load_data(url_dict):
         df = pd.DataFrame([])
         for key in url_dict:
@@ -28,12 +36,7 @@ with st.sidebar:
             df1.rename(columns={'Ticker':'Symbol'},inplace=True)
             df = pd.concat([df, df1], axis=0, ignore_index=True)
         return df
-    url_dict = {'S&P500':{'url':'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies','position':0,'etf':'SPY'},
-                'S&P400':{'url':'https://en.wikipedia.org/wiki/List_of_S%26P_400_companies','position':0,'etf':'SPMD'},
-                'S&P600':{'url':'https://en.wikipedia.org/wiki/List_of_S%26P_600_companies','position':0,'etf':'SPSM'},
-                'DJIA30':{'url':'https://en.wikipedia.org/wiki/Dow_Jones_Industrial_Average#Components','position':2,'etf':'DIA'},
-                'Nasdaq100':{'url':'https://en.wikipedia.org/wiki/Nasdaq-100#Components','position':4,'etf':'QQQ'}
-                }
+    
     index_list = list(url_dict.keys())
     df_tickers = load_data(url_dict)
     key_cols = ['Index','Symbol','Company','Headquarters Location','Date added','Founded']
