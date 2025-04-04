@@ -29,9 +29,8 @@ with st.sidebar:
     def load_data(url_dict):
         df = pd.DataFrame([])
         for key in url_dict:
-            st.write(url_dict[key])
-            st.write(url_dict[key]['url'])
-            html = pd.read_html(url_dict[key]['url'], header=0)
+            url = url_dict[key]['url']
+            html = pd.read_html(url, header=0)
             df1 = html[url_dict[key]['position']]
             df1['Index'] = key
             df1.rename(columns={'Security':'Company'},inplace=True)
