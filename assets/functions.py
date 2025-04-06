@@ -54,7 +54,6 @@ def get_stock_data_daily(symbol_or_symbols, start, end, frequency='Day'):
 # pull stock data from alpaca and convert to return format
 @st.cache_data(ttl=ttl, show_spinner=True)
 def get_stock_return_daily(df):
-    # df = get_stock_data_daily(symbol_or_symbols, start, end, frequency=frequency)
     df_return = df.pivot_table(index='timestamp',columns='symbol',values='close',aggfunc='mean').sort_index(ascending=True).pct_change()
     return df_return
 
@@ -186,7 +185,7 @@ def calculate_plot_rolling_correlation_benchmark(etf_ticker, stock_ticker_list, 
         color=alt.Color('metric:N',
                         scale={'range':['red','green']},
                         legend=alt.Legend(title=' ',orient='top')))
-    return st.altair_chart(corr_chart, use_container_width=True)
+    return df_corr_metric, corr_chart
 
 # # pull stock data from alpaca and convert to return format - flexible for day/hour/minute
 # @st.cache_data(ttl=ttl, show_spinner=True)

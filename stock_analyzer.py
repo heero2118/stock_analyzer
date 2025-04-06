@@ -76,7 +76,7 @@ button[data-baseweb="tab"] > div[data-testid="stMarkdownContainer"] > p {
 st.write(font_css, unsafe_allow_html=True)
 # Set Up Multiple Tabs ####################################################################################
 
-# Tab 1: Market Condition ####################################################################################
+# Tab 1: Market Snapshot ####################################################################################
 with tab1:
     # Pull data from Alpaca ####################################################################################
     st.subheader('Index Price - Daily Close')
@@ -100,12 +100,15 @@ with tab1:
     with col1:
         symbol1 = 'SPY'
         make_ohlc_chart(df=market_data[market_data['symbol']==symbol1],title=f'{symbol1} - Price',line_sticks=line_sticks_select)
+        st.download_button(f'Download {symbol1}',data=market_data[market_data['symbol']==symbol1].to_csv(),file_name=f'{symbol1}.csv')
     with col2:
         symbol2 = 'SPMD'
         make_ohlc_chart(df=market_data[market_data['symbol']==symbol2],title=f'{symbol2} - Price',line_sticks=line_sticks_select)
+        st.download_button(f'Download {symbol2}',data=market_data[market_data['symbol']==symbol2].to_csv(),file_name=f'{symbol2}.csv')
     with col3:
         symbol3 = 'SPSM'
         make_ohlc_chart(df=market_data[market_data['symbol']==symbol3],title=f'{symbol3} - Price',line_sticks=line_sticks_select)
+        st.download_button(f'Download {symbol3}',data=market_data[market_data['symbol']==symbol3].to_csv(),file_name=f'{symbol3}.csv')
     st.divider()
 
     # Asset Correlation Analysis
@@ -118,15 +121,21 @@ with tab1:
     col1, col2, col3 = st.columns(3)
     with col1:
         list1 = df_tickers[df_tickers['Index']==get_key_from_value(url_dict,symbol1,'etf')]['Symbol'].to_list()
-        calculate_plot_rolling_correlation_benchmark(etf_ticker=symbol1, stock_ticker_list=list1, market_date_start=market_date_start, market_date_end=market_date_end, market_corr_rolling_window=market_corr_rolling_window)
+        df_corr_metric1, corr_chart1 = calculate_plot_rolling_correlation_benchmark(etf_ticker=symbol1, stock_ticker_list=list1, market_date_start=market_date_start, market_date_end=market_date_end, market_corr_rolling_window=market_corr_rolling_window)
+        st.altair_chart(corr_chart1, use_container_width=True)
+        st.download_button(f'Download rolling corr - {symbol1}',data=df_corr_metric1.to_csv(),file_name=f'{symbol1} rolling correlation.csv')
     with col2:
         list2 = df_tickers[df_tickers['Index']==get_key_from_value(url_dict,symbol2,'etf')]['Symbol'].to_list()
-        calculate_plot_rolling_correlation_benchmark(etf_ticker=symbol2, stock_ticker_list=list2, market_date_start=market_date_start, market_date_end=market_date_end, market_corr_rolling_window=market_corr_rolling_window)        
+        df_corr_metric2, corr_chart2 = calculate_plot_rolling_correlation_benchmark(etf_ticker=symbol2, stock_ticker_list=list2, market_date_start=market_date_start, market_date_end=market_date_end, market_corr_rolling_window=market_corr_rolling_window)
+        st.altair_chart(corr_chart2, use_container_width=True)
+        st.download_button(f'Download rolling corr - {symbol2}',data=df_corr_metric2.to_csv(),file_name=f'{symbol2} rolling correlation.csv')
     with col3:
         list3 = df_tickers[df_tickers['Index']==get_key_from_value(url_dict,symbol3,'etf')]['Symbol'].to_list()
-        calculate_plot_rolling_correlation_benchmark(etf_ticker=symbol3, stock_ticker_list=list3, market_date_start=market_date_start, market_date_end=market_date_end, market_corr_rolling_window=market_corr_rolling_window)
+        df_corr_metric3, corr_chart3 = calculate_plot_rolling_correlation_benchmark(etf_ticker=symbol3, stock_ticker_list=list3, market_date_start=market_date_start, market_date_end=market_date_end, market_corr_rolling_window=market_corr_rolling_window)
+        st.altair_chart(corr_chart3, use_container_width=True)
+        st.download_button(f'Download rolling corr - {symbol3}',data=df_corr_metric3.to_csv(),file_name=f'{symbol3} rolling correlation.csv')
     st.divider()
-# Tab 1: Market Condition ####################################################################################
+# Tab 1: Market Snapshot ####################################################################################
 
 # Tab 4: Reference stocks ####################################################################################
 with tab4:
@@ -149,9 +158,9 @@ with tab2:
     col1, col2, col3 = st.columns(3)
     with col1:
         ################################# SPY #################################
-        st.subheader(f'{symbol1} - Constituent Correlation')
+        st.subheader(f'{symbol1} - Asset Correlation')
         df_rolling_corr1 = calculate_etf_constituent_corr(etf_ticker=symbol1, stock_ticker_list=list1, start=market_date_start, end=market_date_end, window_size=tab2_rolling_day)
-        col1a, col1b = st.columns(2)
+        col1a, col1b, col1c = st.columns(3)
         with col1a:
             st.write(f'Top {show_top_n}')
             st.dataframe(df_rolling_corr1.mean(axis=0).sort_values(ascending=False)[:show_top_n])
@@ -160,6 +169,7 @@ with tab2:
             st.write(f'Bottom {show_top_n}')
             st.dataframe(df_rolling_corr1.mean(axis=0).sort_values(ascending=True)[:show_top_n])
             bottom1 = df_rolling_corr1.mean(axis=0).sort_values(ascending=True).index[0]
+        with col1c: st.download_button(f'{symbol1} data',data=df_rolling_corr1.mean(axis=0).sort_values(ascending=False).to_csv(),file_name=f'{symbol1} asset correlation.csv')
         st.divider()
         
         selected_stocks1 = st.multiselect('Choose subject stocks',options=df_rolling_corr1.columns.unique(),default=[top1,bottom1])
@@ -170,12 +180,11 @@ with tab2:
             color=alt.Color('symbol:N',legend=alt.Legend(title=' ',orient='top')))
         st.altair_chart(chart1, use_container_width=True)
 
-
     with col2:
         ################################# DIA #################################
-        st.subheader(f'{symbol2} - Constituent Correlation')
+        st.subheader(f'{symbol2} - Asset Correlation')
         df_rolling_corr2 = calculate_etf_constituent_corr(etf_ticker=symbol2, stock_ticker_list=list2, start=market_date_start, end=market_date_end, window_size=tab2_rolling_day)
-        col2a, col2b = st.columns(2)
+        col2a, col2b, col2c = st.columns(3)
         with col2a:
             st.write(f'Top {show_top_n}')
             st.dataframe(df_rolling_corr2.mean(axis=0).sort_values(ascending=False)[:show_top_n])
@@ -184,6 +193,7 @@ with tab2:
             st.write(f'Bottom {show_top_n}')
             st.dataframe(df_rolling_corr2.mean(axis=0).sort_values(ascending=True)[:show_top_n])
             bottom2 = df_rolling_corr2.mean(axis=0).sort_values(ascending=True).index[0]
+        with col2c: st.download_button(f'{symbol2} data',data=df_rolling_corr2.mean(axis=0).sort_values(ascending=False).to_csv(),file_name=f'{symbol2} asset correlation.csv')
         st.divider()
 
         selected_stocks2 = st.multiselect('Choose subject stocks',options=df_rolling_corr2.columns.unique(),default=[top2,bottom2])
@@ -194,12 +204,11 @@ with tab2:
             color=alt.Color('symbol:N',legend=alt.Legend(title=' ',orient='top')))
         st.altair_chart(chart2, use_container_width=True)
 
-
     with col3:
         ################################# QQQ #################################
-        st.subheader(f'{symbol3} - Constituent Correlation')
+        st.subheader(f'{symbol3} - Asset Correlation')
         df_rolling_corr3 = calculate_etf_constituent_corr(etf_ticker=symbol3, stock_ticker_list=list3, start=market_date_start, end=market_date_end, window_size=tab2_rolling_day)
-        col3a, col3b = st.columns(2)
+        col3a, col3b, col3c = st.columns(3)
         with col3a:
             st.write('Top 10')
             st.dataframe(df_rolling_corr3.mean(axis=0).sort_values(ascending=False)[:show_top_n])
@@ -208,6 +217,7 @@ with tab2:
             st.write('Bottom 10')
             st.dataframe(df_rolling_corr3.mean(axis=0).sort_values(ascending=True)[:show_top_n])
             bottom3 = df_rolling_corr3.mean(axis=0).sort_values(ascending=True).index[0]
+        with col3c: st.download_button(f'{symbol3} data',data=df_rolling_corr3.mean(axis=0).sort_values(ascending=False).to_csv(),file_name=f'{symbol3} asset correlation.csv')
         st.divider()
 
         selected_stocks3 = st.multiselect('Choose subject stocks',options=df_rolling_corr3.columns.unique(),default=[top3,bottom3])
