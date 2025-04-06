@@ -7,12 +7,13 @@ import plotly.express as px
 import seaborn as sns 
 import matplotlib.pyplot as plt
 import numpy as np
-from assets.alpaca_setup import *
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
 
-# Alpaca keys
+# Alpaca setup
+api_key = st.secrets['alpaca_api_key']
+secret_key = st.secrets['alpaca_secret_key']
 client = StockHistoricalDataClient(api_key=api_key, secret_key=secret_key)
 
 # set max cache age

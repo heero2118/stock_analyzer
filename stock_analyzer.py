@@ -8,7 +8,6 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 from assets.functions import *
-from assets.alpaca_setup import *
 
 # Set Page Name and Emoji ####################################################################################
 st.set_page_config(page_title='Stock Analyzer',layout='wide',page_icon='📈')
