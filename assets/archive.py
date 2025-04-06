@@ -87,3 +87,29 @@
 # df_corr1 = df_corr1.unstack().reset_index().rename(columns={'level_0':'metric',0:'correlation'}).set_index('timestamp')
 # plot_rolling_correlation(df_corr1)
 # Archived - detailed calculation of all stock pairs but extremetly time consuming #######################################################
+
+
+# ################ Altair price chart ################
+# # Encoding Types: Q (quantitative), N (nominal), O (ordinal), T (temporal)
+# price_chart = alt.Chart(data.reset_index()).mark_line().encode(
+#     x=alt.X('timestamp:O', timeUnit=timeUnit, title='Date'),
+#     y=alt.Y('close:Q',  title='Price', scale=alt.Scale(zero=False)),
+#     color='symbol:N'
+# )
+# st.altair_chart(price_chart, use_container_width=True)
+# ################ Altair price chart ################
+
+
+# # ARCHIVED since individual correlation pairs are too compute intensive
+# # Plot rolling correlation in Altair
+# def plot_rolling_correlation(df_rolling_corr,timeUnit='yearmonthdate',title='Rolling Correlation',add_boundary=False):
+#     # Encoding Types: Q (quantitative), N (nominal), O (ordinal), T (temporal)
+#     corr_chart = alt.Chart(df_rolling_corr.reset_index(),title=title).mark_line(interpolate='step-after').encode(
+#         x=alt.X('timestamp:O', timeUnit=timeUnit, title='Date'),
+#         y=alt.Y('correlation:Q',  title='Correlation', scale=alt.Scale(zero=False)), # domain=[-1, 1], 
+#         color='metric:N',
+#     )
+#     if add_boundary == True:
+#         lines = alt.Chart(pd.DataFrame({'y': [-1,0,1]})).mark_rule().encode(y='y')
+#         return st.altair_chart(corr_chart+lines, use_container_width=True)
+#     else: return st.altair_chart(corr_chart, use_container_width=True)
