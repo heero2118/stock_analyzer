@@ -8,6 +8,12 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 from assets.alpaca_setup import *
+from alpaca.data.historical import StockHistoricalDataClient
+from alpaca.data.requests import StockBarsRequest
+from alpaca.data.timeframe import TimeFrame
+
+# Alpaca keys
+client = StockHistoricalDataClient(api_key=api_key, secret_key=secret_key)
 
 # set max cache age
 ttl = 3600 # max cache age 1 hour (3600 seconds)
