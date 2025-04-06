@@ -11,6 +11,7 @@ from assets.functions import *
 
 # Set Page Name and Emoji ####################################################################################
 st.set_page_config(page_title='Stock Analyzer',layout='wide',page_icon='📈')
+default_lookback_yr = 10
 
 # Set Up Sidebar ####################################################################################
 with st.sidebar:
@@ -50,7 +51,7 @@ with st.sidebar:
     elif frequency == 'Hour': timeUnit = 'yearmonthdatehours'
     elif frequency == 'Minute': timeUnit = 'yearmonthdatehoursminutes'
     col1, col2 = st.columns(2)
-    with col1: date_start = st.date_input("Select Start Date", datetime.today()-timedelta(days=365), format="YYYY/MM/DD") # .replace(month=1, day=1)
+    with col1: date_start = st.date_input("Select Start Date", datetime.today()-timedelta(days=365*default_lookback_yr), format="YYYY/MM/DD") # .replace(month=1, day=1)
     with col2: date_end = st.date_input("Select End Date", datetime.today(), format="YYYY/MM/DD")
     
     # Pull stock data from Alpaca based on user input
@@ -83,7 +84,7 @@ with tab1:
     # User Inputs
     col1, col2, col3, col4 = st.columns([1,1,1,4])
     with col1:
-        market_date_start = st.date_input("Start Date", datetime.today()-timedelta(days=365), format="YYYY/MM/DD") # .replace(month=1, day=1)
+        market_date_start = st.date_input("Start Date", datetime.today()-timedelta(days=365*default_lookback_yr), format="YYYY/MM/DD") # .replace(month=1, day=1)
     with col2:
         market_date_end = st.date_input("End Date", datetime.today(), format="YYYY/MM/DD")
     with col3:
@@ -100,10 +101,10 @@ with tab1:
         symbol1 = 'SPY'
         make_ohlc_chart(df=market_data[market_data['symbol']==symbol1],title=f'{symbol1} - Price',line_sticks=line_sticks_select)
     with col2:
-        symbol2 = 'DIA'
+        symbol2 = 'SPMD'
         make_ohlc_chart(df=market_data[market_data['symbol']==symbol2],title=f'{symbol2} - Price',line_sticks=line_sticks_select)
     with col3:
-        symbol3 = 'QQQ'
+        symbol3 = 'SPSM'
         make_ohlc_chart(df=market_data[market_data['symbol']==symbol3],title=f'{symbol3} - Price',line_sticks=line_sticks_select)
     st.divider()
 
@@ -229,7 +230,7 @@ with tab3:
     with col1:
         # Cluster heatmap of all chosen stocks
         st.subheader(f'Asset Clustermap: {date_start:%Y/%m/%d} - {date_end:%Y/%m/%d}')
-        cm = calculate_plot_clustermap(df_return,figsize=(10,10))
+        cm = calculate_plot_clustermap(df_return,figsize=(10,8))
         st.pyplot(cm, bbox_inches='tight', dpi=300)
     # Clustermap ####################################################################################
     with col3:
@@ -239,10 +240,8 @@ with tab3:
         col1, col2, col3 = st.columns(3)
         with col1:
             selected1 = st.selectbox('Select Stock 1', selected_stocks_list, index=0)
-            index1 = get_key_from_value(url_dict, selected1, 'etf')
         with col2: 
             selected2 = st.selectbox('Select Stock 2', [x for x in selected_stocks_list if x != selected1] , index=0)
-            index2 = get_key_from_value(url_dict, selected2, 'etf')
         with col3: 
             if frequency == 'Day': max_val = 120
             elif frequency == 'Hour': max_val = 24
@@ -254,7 +253,7 @@ with tab3:
         
         ################ Altair chart ################################################
         # Encoding Types: Q (quantitative), N (nominal), O (ordinal), T (temporal)
-        corr_chart = alt.Chart(df_return.reset_index(),title=f'Rolling {rolling_window} {frequency} correlation - {index1} vs. {index2}').mark_line(interpolate='step-after').encode(
+        corr_chart = alt.Chart(df_return.reset_index(),title=f'Rolling {rolling_window} {frequency} correlation - {selected1} vs. {selected2}').mark_line(interpolate='step-after').encode(
             x=alt.X('timestamp:O', timeUnit=timeUnit, title='Date'),
             y=alt.Y('rolling_corr:Q',  title='Correlation', scale=alt.Scale(domain=[-1, 1], zero=False)),
         )

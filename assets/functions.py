@@ -17,10 +17,10 @@ secret_key = st.secrets['alpaca_secret_key']
 client = StockHistoricalDataClient(api_key=api_key, secret_key=secret_key)
 
 # set max cache age
-ttl = 3600 # max cache age 1 hour (3600 seconds)
+ttl = 36000 # max cache age 10 hour (36000 seconds)
 
 # pull market data from alpaca - cached
-@st.cache_data(ttl=ttl, show_spinner=True) # max cache age 1 hour (3600 seconds)
+@st.cache_data(ttl=ttl, show_spinner=True)
 def get_market_data_daily(etf_list, market_date_start, market_date_end):
     market_request_params = StockBarsRequest(symbol_or_symbols=etf_list, timeframe=TimeFrame.Day, start=market_date_start, end=market_date_end, adjustment='split')
     market_bars = client.get_stock_bars(market_request_params)
@@ -28,7 +28,7 @@ def get_market_data_daily(etf_list, market_date_start, market_date_end):
     return market_data
 
 # pull stock data from alpaca
-@st.cache_data(ttl=ttl, show_spinner=True) # max cache age 1 hour (3600 seconds)
+@st.cache_data(ttl=ttl, show_spinner=True)
 def get_stock_data_daily(symbol_or_symbols, start, end, frequency='Day'):
     # customized for various data frequency
     if frequency == 'Day': request_params = StockBarsRequest( symbol_or_symbols=symbol_or_symbols, timeframe=TimeFrame.Day, start=start, end=end, adjustment='split')
@@ -52,7 +52,7 @@ def get_stock_data_daily(symbol_or_symbols, start, end, frequency='Day'):
     return data
 
 # pull stock data from alpaca and convert to return format
-@st.cache_data(ttl=ttl, show_spinner=True) # max cache age 1 hour (3600 seconds)
+@st.cache_data(ttl=ttl, show_spinner=True)
 def get_stock_return_daily(df):
     # df = get_stock_data_daily(symbol_or_symbols, start, end, frequency=frequency)
     df_return = df.pivot_table(index='timestamp',columns='symbol',values='close',aggfunc='mean').sort_index(ascending=True).pct_change()
@@ -189,21 +189,21 @@ def calculate_plot_rolling_correlation_benchmark(etf_ticker, stock_ticker_list, 
     return st.altair_chart(corr_chart, use_container_width=True)
 
 # # pull stock data from alpaca and convert to return format - flexible for day/hour/minute
-# @st.cache_data(ttl=ttl, show_spinner=True) # max cache age 1 hour (3600 seconds)
+# @st.cache_data(ttl=ttl, show_spinner=True)
 # def calculate_stock_return(etf_ticker, stock_ticker_list, start_date, end_date,figsize=(30,15)):
 #     df_stock = get_stock_data_daily(stock_ticker_list+[etf_ticker], start=start_date, end=end_date)
 #     df_return = get_stock_return_daily(df_stock)
 #     return df_return
 
 # calculate and plot cluster heatmap for ETF
-@st.cache_data(ttl=ttl, show_spinner=True) # max cache age 1 hour (3600 seconds)
+@st.cache_data(ttl=ttl, show_spinner=True)
 def get_stock_return_etf(etf_ticker, stock_ticker_list, start, end):
     df_stock = get_stock_data_daily(stock_ticker_list+[etf_ticker], start=start, end=end)
     df_return = get_stock_return_daily(df_stock)
     return df_return
 
 # calculate and plot cluster heatmap for ETF
-@st.cache_data(ttl=ttl, show_spinner=True) # max cache age 1 hour (3600 seconds)
+@st.cache_data(ttl=ttl, show_spinner=True)
 def calculate_plot_etf_clustermap(etf_ticker, stock_ticker_list, start_date, end_date,figsize=(30,15)):
     df_return = get_stock_return_etf(etf_ticker, stock_ticker_list, start=start_date, end=end_date)
     heatmap = sns.clustermap(df_return.corr(), cmap='RdBu', vmin=-1, vmax=1, center=0, linecolor='white', linewidths=1,figsize=figsize) #, annot_kws={'fontsize':14} , annot=True, fmt=".2f"
@@ -213,7 +213,7 @@ def calculate_plot_etf_clustermap(etf_ticker, stock_ticker_list, start_date, end
     return heatmap
 
 # calculate ETF and constituent stock returns
-@st.cache_data(ttl=ttl, show_spinner=True) # max cache age 1 hour (3600 seconds)
+@st.cache_data(ttl=ttl, show_spinner=True)
 def calculate_etf_constituent_corr(etf_ticker, stock_ticker_list, start, end, window_size):
     df_return = get_stock_return_etf(etf_ticker, stock_ticker_list, start, end)
     df_corr = calculate_rolling_correlation_benchmark(df_return, benchmark_col=etf_ticker, window_size=window_size, drop_benchmark=True)
@@ -221,7 +221,7 @@ def calculate_etf_constituent_corr(etf_ticker, stock_ticker_list, start, end, wi
     return df_corr
 
 # calculate and plot cluster heatmap - flexible for day/hour/minute
-@st.cache_data(ttl=ttl, show_spinner=True) # max cache age 1 hour (3600 seconds)
+@st.cache_data(ttl=ttl, show_spinner=True)
 def calculate_plot_clustermap(df_return,figsize=(30,15)):
     cm = sns.clustermap(df_return.corr(), cmap='RdBu', vmin=-1, vmax=1, center=0, linecolor='white', linewidths=1, annot=True, fmt=".2f",figsize=figsize) # , annot_kws={'fontsize':14}
     return cm
