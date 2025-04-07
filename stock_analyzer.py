@@ -11,7 +11,7 @@ from assets.functions import *
 
 # Set Page Name and Emoji ####################################################################################
 st.set_page_config(page_title='Stock Analyzer',layout='wide',page_icon='📈')
-default_lookback_yr = 5
+default_lookback_yr = 2
 
 # Set Up Sidebar ####################################################################################
 with st.sidebar:
